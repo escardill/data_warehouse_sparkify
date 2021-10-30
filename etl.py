@@ -8,9 +8,13 @@ def load_staging_tables(cur, conn):
     Load data from S3 to redshift cluster
     """
     for query in copy_table_queries:
-        print(f'Loading: {query}')
-        cur.execute(query)
-        conn.commit()
+        try:
+            print(f'Loading: {query}')
+            cur.execute(query)
+            conn.commit()
+        except Exception as e:
+            raise
+            break
 
 
 def insert_tables(cur, conn):
@@ -18,9 +22,13 @@ def insert_tables(cur, conn):
     Insert staging tables to fact and dimension tables
     """
     for query in insert_table_queries:
-        print(f'Inserting data: {query}')
-        cur.execute(query)
-        conn.commit()
+        try:
+            cur.execute(query)
+            conn.commit()
+        except Exception as e:
+            print(query)
+            raise
+            break
 
 
 def main():
@@ -30,25 +38,17 @@ def main():
     print('Connecting to cluster')
     conn = psycopg2.connect("host={} dbname={} user={} password={} port={}".format(*config['CLUSTER'].values()))
     cur = conn.cursor()
-    print('Connected to cluster')
+    print('Connected')
 
     # execute staging tables
-    try:
-        print('Loading staging tables')
-        load_staging_tables(cur, conn)
-        print('Loading SUCCESS')
-    except Exception as e:
-        print(e)
-        print('Loading staging tables FAILED')
+
+    print('Loading staging tables')
+    load_staging_tables(cur, conn)
 
     # execute table inserts
-    try:
-        print('Inserting tables')
-        insert_tables(cur, conn)
-        print('SUCCESS')
-    except Exception as e:
-        print(e)
-        print('Transformation from staging FAILED')
+
+    print('Inserting tables')
+    insert_tables(cur, conn)
 
     conn.close()
     print('ETL pipeline completed')

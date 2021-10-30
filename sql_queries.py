@@ -21,37 +21,37 @@ time_table_drop = "DROP TABLE IF EXISTS time;"
 staging_events_table_create = ("""
 CREATE TABLE IF NOT EXISTS staging_events(
     artist varchar,
-    auth varchar not null,
-    first_name varchar not null,
-    gender varchar(1) not null,
+    auth varchar,
+    first_name varchar,
+    gender varchar(1),
     item_in_session integer,
-    last_name varchar not null,
+    last_name varchar,
     length float,
-    level varchar(5) not null,
-    location varchar not null,
-    method varchar(5) not null,
-    page varchar not null,
-    registration float not null,
-    session_id integer not null,
+    level varchar(5),
+    location varchar,
+    method varchar(5),
+    page varchar,
+    registration float,
+    session_id integer,
     song varchar,
-    status integer not null,
-    ts timestamp not null,
-    user_agent varchar not null,
-    user_id integer not null
+    status integer,
+    ts bigint,
+    user_agent varchar,
+    user_id integer
 );
 """)
 
 staging_songs_table_create = ("""
 CREATE TABLE IF NOT EXISTS staging_songs(
-    num_songs integer not null,
-    artist_id varchar(25) not null,
+    num_songs integer ,
+    artist_id varchar(25) ,
     artist_latitiude varchar,
     artist_longitude varchar,
     artist_location varchar,
-    artist_name varchar not null,
-    song_id varchar(25) not null,
-    title varchar not null,
-    duration float not null,
+    artist_name varchar ,
+    song_id varchar(25) ,
+    title varchar ,
+    duration float ,
     year integer
 );
 """)
@@ -59,71 +59,73 @@ CREATE TABLE IF NOT EXISTS staging_songs(
 songplay_table_create = ("""
 CREATE TABLE IF NOT EXISTS songplays(
     songplay_id bigint IDENTITY(0,1) PRIMARY KEY,
-    start_time timestamp NOT NULL SORTKEY DISTKEY,
-    user_id integer not null,
-    level varchar(10) not null,
-    song_id integer not null,
-    artist_id integer not null,
-    session_id integer not null,
-    location varchar(25) not null,
-    user_agent varchar(255) not null)
+    start_time timestamp  NOT NULL SORTKEY DISTKEY references time (start_time),
+    user_id integer NOT NULL references users (user_id),
+    level varchar(10) ,
+    song_id integer NOT NULL references songs (song_id),
+    artist_id integer NOT NULL references artists (artist_id),
+    session_id integer NOT NULL,
+    location varchar(25) ,
+    user_agent varchar(255) )
     diststyle key;
 """)
 
 user_table_create = ("""
 CREATE TABLE IF NOT EXISTS users(
-    user_id INTEGER PRIMARY KEY SORTKEY,
-    first_name VARCHAR(25) NOT NULL,
-    last_name VARCHAR(25) NOT NULL,
-    gender VARCHAR(2) NOT NULL,
-    level VARCHAR(10) NOT NULL)
+    user_id integer PRIMARY KEY SORTKEY,
+    first_name varchar(25) ,
+    last_name varchar(25) ,
+    gender varchar(2) ,
+    level varchar(10) )
     diststyle all;
 """)
 
 song_table_create = ("""
 CREATE TABLE IF NOT EXISTS songs(
-    song_id INTEGER PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
-    artist_id INTEGER NOT NULL,
-    year INTEGER NOT NULL SORTKEY,
-    duration INTEGER NOT NULL)
+    song_id integer PRIMARY KEY,
+    title varchar(255) ,
+    artist_id integer ,
+    year integer  SORTKEY,
+    duration integer )
     diststyle all;
 """)
 
 artist_table_create = ("""
-CREATE TABLE IF NOT EXISTS artitst(
-    artist_id INTEGER PRIMARY KEY,
-    name VARCHAR(25) NOT NULL SORTKEY,
-    location VARCHAR(255) NOT NULL,
-    latitude float NOT NULL,
-    longitude float NOT NULL)
+CREATE TABLE IF NOT EXISTS artists(
+    artist_id integer PRIMARY KEY,
+    name varchar(25)  NOT NULL SORTKEY,
+    location varchar(255) ,
+    latitude float ,
+    longitude float )
     diststyle all;
 """)
 
 time_table_create = ("""
 CREATE TABLE IF NOT EXISTS time(
-    start_time timestamp SORTKEY primary key,
-    hour smallint not null,
-    day smallint not null,
-    week smallint not null,
-    month smallint not null,
-    weekday smallint not null)
+    start_time timestamp PRIMARY KEY SORTKEY,
+    hour smallint NOT NULL,
+    day smallint NOT NULL,
+    week smallint NOT NULL,
+    month smallint NOT NULL,
+    weekday smallint NOT NULL)
     diststyle all;
 """)
 
 # STAGING TABLES
 
 staging_events_copy = ("""
-copy staging_events from 's3://udacity-dend/log_json_path.json'
-credentials 'aws_iam_role={}'
-format as json 'auto' region 'us-west-2';
-""").format(ARN)
+COPY staging_events FROM {} CREDENTIALS 'aws_iam_role={}' json {};
+""").format(config.get('S3', 'LOG_DATA'),
+            config.get('IAM_ROLE', 'ARN'),
+            config.get('S3', 'LOG_JSONPATH'))
 
-staging_songs_copy = ("""
-copy staging_songs from 's3://udacity-dend/song_data'
-credentials 'aws_iam_role={}'
-format as json 'auto' region 'us-west-2';
-""").format(ARN)
+staging_songs_copy = ("""    
+COPY staging_songs FROM {} CREDENTIALS 'aws_iam_role={}' json 'auto' truncatecolumns;
+""").format(config.get('S3', 'SONG_DATA'),
+            config.get('IAM_ROLE', 'ARN'))
+
+
+
 
 # FINAL TABLES
 
@@ -137,7 +139,7 @@ INSERT INTO songplays (songplay_id,
     session_id,
     location,
     user_agent)
-SELECT
+SELECT 
     e.ts as start_time,
     e.user_id as user_id,
     e.level as level,
@@ -149,7 +151,7 @@ SELECT
     
 FROM staging_songs s
 JOIN staging_events e ON (e.song = s.title AND e.artist = s.artist_name)
-AND e.page = 'NextSong'
+WHERE e.page = 'NextSong'
 ;
 """)
 
@@ -234,6 +236,8 @@ create_table_queries = [staging_events_table_create, staging_songs_table_create,
                         user_table_create, song_table_create, artist_table_create, time_table_create]
 drop_table_queries = [staging_events_table_drop, staging_songs_table_drop, songplay_table_drop, user_table_drop,
                       song_table_drop, artist_table_drop, time_table_drop]
-copy_table_queries = [staging_events_copy, staging_songs_copy]
+copy_table_queries = [
+    # staging_events_copy,
+    staging_songs_copy]
 insert_table_queries = [songplay_table_insert, user_table_insert, song_table_insert, artist_table_insert,
                         time_table_insert]
