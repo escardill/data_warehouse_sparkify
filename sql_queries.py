@@ -58,22 +58,16 @@ CREATE TABLE IF NOT EXISTS staging_songs(
 
 songplay_table_create = ("""
 CREATE TABLE IF NOT EXISTS songplays(
-    songplay_id bigint IDENTITY(0,1),
-    start_time timestamp NOT NULL SORTKEY,
+    songplay_id bigint IDENTITY(0,1) PRIMARY KEY,
+    start_time timestamp NOT NULL SORTKEY DISTKEY,
     user_id integer not null,
     level varchar(10) not null,
     song_id integer not null,
     artist_id integer not null,
     session_id integer not null,
     location varchar(25) not null,
-    user_agent varchar(255) not null,
-    primary key (songplay_id),
-    foreign key (user_id) references users(user_id),
-    foreign key (song_id) references songs(songplay_id),
-    foreign key (artist_id) references artists(artist_id),
-    foreign key (start_time) references time(start_time),
-    diststyle key distkey (timestamp)
-);
+    user_agent varchar(255) not null)
+    diststyle key;
 """)
 
 user_table_create = ("""
@@ -82,9 +76,8 @@ CREATE TABLE IF NOT EXISTS users(
     first_name VARCHAR(25) NOT NULL,
     last_name VARCHAR(25) NOT NULL,
     gender VARCHAR(2) NOT NULL,
-    level VARCHAR(10) NOT NULL,
-    diststyle all
-);
+    level VARCHAR(10) NOT NULL)
+    diststyle all;
 """)
 
 song_table_create = ("""
@@ -93,21 +86,18 @@ CREATE TABLE IF NOT EXISTS songs(
     title VARCHAR(255) NOT NULL,
     artist_id INTEGER NOT NULL,
     year INTEGER NOT NULL SORTKEY,
-    duration INTEGER NOT NULL,
-    foreign key (artist_id) references artists(artist_id),
-    diststyle all 
-);
+    duration INTEGER NOT NULL)
+    diststyle all;
 """)
 
 artist_table_create = ("""
 CREATE TABLE IF NOT EXISTS artitst(
-    artist_id INTEGER SORTKEY PRIMARY KEY,
+    artist_id INTEGER PRIMARY KEY,
     name VARCHAR(25) NOT NULL SORTKEY,
     location VARCHAR(255) NOT NULL,
     latitude float NOT NULL,
-    longitude float NOT NULL,
-    diststyle all
-);
+    longitude float NOT NULL)
+    diststyle all;
 """)
 
 time_table_create = ("""
@@ -117,9 +107,8 @@ CREATE TABLE IF NOT EXISTS time(
     day smallint not null,
     week smallint not null,
     month smallint not null,
-    weekday smallint not null,
-    diststyle all
-);
+    weekday smallint not null)
+    diststyle all;
 """)
 
 # STAGING TABLES

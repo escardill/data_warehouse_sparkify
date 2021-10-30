@@ -17,8 +17,13 @@ def create_tables(cur, conn):
     Create all the tables in create_table_queries
     """
     for query in create_table_queries:
-        cur.execute(query)
-        conn.commit()
+        try:
+            cur.execute(query)
+            conn.commit()
+        except Exception as e:
+            print(f"Table creation failed. Exception: {e}")
+            print(f"Not executed query: {query}")
+            break
 
 
 def main():
@@ -26,6 +31,7 @@ def main():
     config.read('dwh.cfg')
 
     print('Connecting to cluster')
+    print("host={} dbname={} user={} password={} port={}".format(*config['CLUSTER'].values()))
     conn = psycopg2.connect("host={} dbname={} user={} password={} port={}".format(*config['CLUSTER'].values()))
     cur = conn.cursor()
     print('Connected to cluster')
@@ -37,12 +43,7 @@ def main():
         print(f"Tables droping failed. Exception: {e}")
 
     print("Creating fact, dimensions and staging tables")
-
-    try:
-        create_tables(cur, conn)
-    except Exception as e:
-        print(f"Tables creation failed. Exception: {e}")
-
+    create_tables(cur, conn)
     conn.close()
     print("Tables creation process ended")
 
