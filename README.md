@@ -1,7 +1,5 @@
 # data_warehouse_sparkify
 
-The purpose of this project is to build an ETL pipeline that will be able to extract song data from an S3 bucket and transform that data to make it suitable for analysis. This data can be used with business intelligence and visualization apps that will help the analytics team to better understand what songs are commonly listened to on the app.
-
 ## Data 
 The data for this project is on S3 on AWS. Configurations can be seen in the dwh.cfg file:
     [S3]
@@ -53,7 +51,6 @@ IaC to delete all the above created resources
 ### Prerequisites:
 - Make sure to Launch a redshift cluster and create an IAM role that has read access to S3.
 - Set AWS access and secret keys
-- 
 - Security group with inbound rules appropriately set as below:
 > Type: Custom TCP Rule.
 > Protocol: TCP.
