@@ -45,8 +45,8 @@ staging_songs_table_create = ("""
 CREATE TABLE IF NOT EXISTS staging_songs(
     num_songs integer ,
     artist_id varchar(25) ,
-    artist_latitiude varchar,
-    artist_longitude varchar,
+    artist_latitude float,
+    artist_longitude float,
     artist_location varchar,
     artist_name varchar ,
     song_id varchar(25) ,
@@ -62,11 +62,11 @@ CREATE TABLE IF NOT EXISTS songplays(
     start_time timestamp  NOT NULL SORTKEY DISTKEY references time (start_time),
     user_id integer NOT NULL references users (user_id),
     level varchar(10) ,
-    song_id integer NOT NULL references songs (song_id),
-    artist_id integer NOT NULL references artists (artist_id),
+    song_id varchar NOT NULL references songs (song_id),
+    artist_id varchar NOT NULL references artists (artist_id),
     session_id integer NOT NULL,
-    location varchar(25) ,
-    user_agent varchar(255) )
+    location varchar,
+    user_agent varchar)
     diststyle key;
 """)
 
@@ -82,9 +82,9 @@ CREATE TABLE IF NOT EXISTS users(
 
 song_table_create = ("""
 CREATE TABLE IF NOT EXISTS songs(
-    song_id integer PRIMARY KEY,
+    song_id varchar(25) PRIMARY KEY,
     title varchar(255) ,
-    artist_id integer ,
+    artist_id varchar(25),
     year integer  SORTKEY,
     duration integer )
     diststyle all;
@@ -92,8 +92,8 @@ CREATE TABLE IF NOT EXISTS songs(
 
 artist_table_create = ("""
 CREATE TABLE IF NOT EXISTS artists(
-    artist_id integer PRIMARY KEY,
-    name varchar(25)  NOT NULL SORTKEY,
+    artist_id varchar(25) PRIMARY KEY,
+    name varchar NOT NULL SORTKEY,
     location varchar(255) ,
     latitude float ,
     longitude float )
@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS time(
     day smallint NOT NULL,
     week smallint NOT NULL,
     month smallint NOT NULL,
+    year smallint NOT NULL,
     weekday smallint NOT NULL)
     diststyle all;
 """)
@@ -133,7 +134,7 @@ COPY staging_songs FROM
 # FINAL TABLES
 
 songplay_table_insert = ("""
-INSERT INTO songplays (songplay_id,
+INSERT INTO songplays (
     start_time,
     user_id,
     level,
@@ -142,8 +143,8 @@ INSERT INTO songplays (songplay_id,
     session_id,
     location,
     user_agent)
-SELECT 
-    e.ts as start_time,
+SELECT DISTINCT
+    TIMESTAMP 'epoch' + (e.ts / 1000) * INTERVAL '1 second' as start_time,
     e.user_id as user_id,
     e.level as level,
     s.song_id as song_id,
@@ -165,13 +166,14 @@ INSERT INTO users (
     last_name,
     gender,
     level)
-SELECT 
+SELECT DISTINCT 
     e.user_id as user_id,
     e.first_name as first_name,
     e.last_name as last_name,
     e.gender as gender,
     e.level as level
-FROM staging_events e;
+FROM staging_events e
+WHERE e.auth = 'Logged In';
 """)
 
 song_table_insert = ("""
@@ -182,7 +184,7 @@ INSERT INTO songs(
     year,
     duration
 )
-SELECT
+SELECT DISTINCT
     s.song_id as song_id,
     s.title as title,
     s.artist_id as artist_id,
@@ -200,7 +202,7 @@ INSERT INTO artists(
     latitude,
     longitude
 )
-SELECT 
+SELECT DISTINCT
     s.artist_id as artist_id,
     s.artist_name as name, 
     s.artist_location as location,
@@ -210,29 +212,12 @@ SELECT
 FROM staging_songs s
 """)
 
-time_table_insert = ("""
-INSERT INTO time(
-    start_time,
-    hour,
-    day,
-    week,
-    month,
-    weekday)
-SELECT 
-    ts as start_time,
-    EXTRACT(hr from start_time) AS hour,
-    EXTRACT(d from start_time) AS day,
-    EXTRACT(w from start_time) AS week,
-    EXTRACT(mon from start_time) AS month,
-    EXTRACT(yr from start_time) AS year, 
-    EXTRACT(weekday from start_time) AS weekday 
-FROM (
-    SELECT DISTINCT  TIMESTAMP 'epoch' + ts/1000 *INTERVAL '1 second' as start_time 
-    FROM staging_events s     
-    )
-WHERE start_time NOT IN (SELECT DISTINCT start_time FROM time)
+time_table_insert = ("""INSERT INTO time(start_time, hour, day, week, month, year, weekDay)
+                        SELECT start_time, extract(hour from start_time), extract(day from start_time),
+                                extract(week from start_time), extract(month from start_time),
+                                extract(year from start_time), extract(dayofweek from start_time)
+                        FROM songplays
 """)
-
 # QUERY LISTS
 
 create_table_queries = [staging_events_table_create, staging_songs_table_create, user_table_create,
@@ -242,5 +227,5 @@ drop_table_queries = [staging_events_table_drop, staging_songs_table_drop, songp
 copy_table_queries = [
     staging_events_copy,
     staging_songs_copy]
-insert_table_queries = [songplay_table_insert, user_table_insert, song_table_insert, artist_table_insert,
+insert_table_queries = [user_table_insert, song_table_insert, artist_table_insert, songplay_table_insert,
                         time_table_insert]
